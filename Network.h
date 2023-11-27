@@ -9,7 +9,7 @@
 
 // Constants
 const int BUF_SIZE = 1024;
-const int HEARTBEATS_SECS = 15;
+const int HEARTBEATS_SECS = 5;
 
 // Structs
 struct Packet {
@@ -64,7 +64,7 @@ private:
     const char *host;
 
     void ResolveServer(Packet& pkt, int socket);
-    void ResolveClient(Packet& pkt);
+    void ResolveClient(Packet pkt);
     void AcceptConnections();
     void ReceiverServer();
     void ReceiverClient();

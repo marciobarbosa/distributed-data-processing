@@ -104,7 +104,7 @@ void Network::ResolveServer(Packet& pkt, int socket)
     }
 }
 
-void Network::ResolveClient(Packet& pkt)
+void Network::ResolveClient(Packet pkt)
 {
     std::string message(pkt.message);
     switch (pkt.opcode) {
@@ -255,7 +255,7 @@ void Network::ReceiverClient()
 	    return;
 	}
 	Deserialize(buffer, nbytes, pkt);
-	ResolveClient(pkt);
+	std::thread(&Network::ResolveClient, this, pkt).detach();
     }
 }
 

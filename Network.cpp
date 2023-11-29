@@ -28,6 +28,11 @@ void Network::InitServer(std::shared_ptr<std::atomic<bool>> quit)
 	throw std::runtime_error("Error creating socket");
     }
 
+    const int enable = 1;
+    if (setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &enable, sizeof(int)) < 0) {
+	throw std::runtime_error("Error setting SO_REUSEADDR");
+    }
+
     sockaddr_in sip;
     sip.sin_family = AF_INET;
     sip.sin_addr.s_addr = INADDR_ANY;

@@ -1,2 +1,8 @@
 .idea/
 cmake-build-*/
+*~
+*.swp
+*.swo
+**/.vscode
+.vscode/
+build/

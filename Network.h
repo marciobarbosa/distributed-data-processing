@@ -23,10 +23,12 @@ const int PKTSIZE = sizeof(Packet);
 const int RESULT = 0;
 const int HEARTBEAT = 1;
 const int REQUEST = 2;
+const int AGGREGATE = 3;
 
 class Client {
 public:
-    virtual void Request(std::string) = 0;
+    virtual void Request(std::string, int) = 0;
+    virtual void Aggregate(std::string, int) = 0;
 };
 
 class Server {

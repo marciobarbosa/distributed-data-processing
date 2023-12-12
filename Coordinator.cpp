@@ -1,6 +1,9 @@
 #include "Coordinator.h"
 #include "CurlEasyPtr.h"
+#include "Common.h"
 
+#include <set>
+#include <queue>
 #include <iostream>
 #include <sstream>
 #include <cstring>
@@ -10,12 +13,14 @@ Coordinator::Coordinator(int port, std::string listurl) : port(port), listurl(li
 {
     result = 0;
     network = std::make_unique<Network>(port, this);
+    storage = std::make_unique<Disk>();
 }
 
 void Coordinator::Init(std::shared_ptr<std::atomic<bool>> quit)
 {
     this->quit = quit;
     network->InitServer(quit);
+    storage->Init();
 }
 
 void Coordinator::NewClient(int socket)
@@ -45,7 +50,7 @@ void Coordinator::CrashedClient(int socket)
 
     auto it_busy = busy_workers.find(socket);
     if (it_busy != busy_workers.end()) {
-	pending_links.push_back(it_busy->second);
+	pending_work.push_back(it_busy->second);
 	busy_workers.erase(it_busy);
 	busy_workers_cv.notify_one();
 	return;
@@ -78,15 +83,15 @@ size_t Coordinator::DistributeLoad()
 	int socket = idle_workers.back();
 	idle_workers.pop_back();
 	busy_workers[socket] = url;
-	network->SendServer(socket, REQUEST, 0, url);
+	network->SendServer(socket, REQUEST, socket, url);
     }
     while (!busy_workers.empty()) {
 	busy_workers_cv.wait(lock);
 	if (quit->load())
 	    return 0;
     }
-    while (pending_links.size() != 0) {
-	std::vector<std::string> links = pending_links;
+    while (pending_work.size() != 0) {
+	std::vector<std::string> links = pending_work;
 	for (std::string url : links) {
 	    if (quit->load()) {
 		return 0;
@@ -100,9 +105,9 @@ size_t Coordinator::DistributeLoad()
 	    idle_workers.pop_back();
 	    busy_workers[socket] = url;
 
-	    auto it = std::remove(pending_links.begin(), pending_links.end(), url);
-	    pending_links.erase(it, pending_links.end());
-	    network->SendServer(socket, REQUEST, 0, url);
+	    auto it = std::remove(pending_work.begin(), pending_work.end(), url);
+	    pending_work.erase(it, pending_work.end());
+	    network->SendServer(socket, REQUEST, socket, url);
 	}
 	while (!busy_workers.empty()) {
 	    busy_workers_cv.wait(lock);
@@ -113,10 +118,126 @@ size_t Coordinator::DistributeLoad()
     return result;
 }
 
+void Coordinator::DistributeAggregation()
+{
+    std::unique_lock<std::mutex> lock(mtx);
+    std::set<std::string> unique_files;
+    std::vector<std::string> ranges;
+
+    auto files = storage->GetFiles();
+    for (const auto& file : files) {
+	size_t pos = file.find('-');
+	unique_files.insert(file.substr(0, pos));
+    }
+
+    size_t files_per_worker = unique_files.size() / idle_workers.size();
+    ranges = GetRanges(unique_files, files_per_worker);
+    for (auto range : ranges) {
+	if (quit->load()) {
+	    return;
+	}
+	while (idle_workers.size() == 0) {
+	    idle_workers_cv.wait(lock);
+	    if (quit->load())
+		return;
+	}
+	int socket = idle_workers.back();
+	idle_workers.pop_back();
+	busy_workers[socket] = range;
+	network->SendServer(socket, AGGREGATE, socket, range);
+    }
+    while (!busy_workers.empty()) {
+	busy_workers_cv.wait(lock);
+	if (quit->load())
+	    return;
+    }
+    while (pending_work.size() != 0) {
+	for (std::string range : pending_work) {
+	    if (quit->load()) {
+		return;
+	    }
+	    while (idle_workers.size() == 0) {
+		idle_workers_cv.wait(lock);
+		if (quit->load())
+		    return;
+	    }
+	    int socket = idle_workers.back();
+	    idle_workers.pop_back();
+	    busy_workers[socket] = range;
+
+	    auto it = std::remove(pending_work.begin(), pending_work.end(), range);
+	    pending_work.erase(it, pending_work.end());
+	    network->SendServer(socket, REQUEST, socket, range);
+	}
+	while (!busy_workers.empty()) {
+	    busy_workers_cv.wait(lock);
+	    if (quit->load())
+		return;
+	}
+    }
+    storage->RemoveFiles(files);
+}
+
+struct AggrEntry {
+    int index;
+    Blob blob_entry;
+};
+
+struct CompareAggrEntry {
+    bool operator()(const AggrEntry& e1, const AggrEntry& e2) const {
+        return e1.blob_entry.n_entries < e2.blob_entry.n_entries;
+    }
+};
+
+std::vector<std::pair<std::string, int>> Coordinator::Aggregate(int top_size)
+{
+    std::string prefix = "aggr";
+    std::vector<std::pair<std::string, int>> result;
+    auto files = storage->GetFiles();
+
+    std::vector<std::unique_ptr<Storage>> handles;
+    for (const auto& file : files) {
+	if (file.compare(0, prefix.length(), prefix) != 0)
+	    continue;
+	std::unique_ptr<Storage> handle = std::make_unique<Disk>();
+	handle->Init();
+	handle->Open(file);
+	handles.push_back(std::move(handle));
+    }
+
+    std::priority_queue<AggrEntry, std::vector<AggrEntry>, CompareAggrEntry> maxheap;
+    for (int i = 0; i < static_cast<int>(handles.size()); i++) {
+	AggrEntry entry = {};
+	entry.index = i;
+	handles[i]->Read(entry.blob_entry);
+	maxheap.push(entry);
+    }
+
+    while (!maxheap.empty()) {
+	AggrEntry entry = maxheap.top();
+	maxheap.pop();
+
+	result.emplace_back(entry.blob_entry.url, entry.blob_entry.n_entries);
+	if (static_cast<int>(result.size()) == top_size)
+	    break;
+	if (!handles[entry.index]->Read(entry.blob_entry))
+	    continue;
+	maxheap.push(entry);
+    }
+
+    for (const auto& handle : handles) {
+	handle->Close();
+	handle->Destroy();
+    }
+    storage->RemoveFiles(files);
+    return result;
+}
+
 void Coordinator::Terminate()
 {
     quit->store(true);
     idle_workers_cv.notify_one();
     busy_workers_cv.notify_one();
     network->TerminateServer();
+    storage->Destroy();
 }

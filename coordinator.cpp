@@ -18,8 +18,13 @@ int main(int argc, char *argv[])
     Coordinator coord(port, listurl);
     coord.Init(quit);
 
-    auto result = coord.DistributeLoad();
-    std::cout << result << std::endl;
+    coord.DistributeLoad();
+    coord.DistributeAggregation();
+
+    auto result = coord.Aggregate(25);
+    for (const auto& entry : result) {
+	std::cout << entry.first << " " << entry.second << "\n";
+    }
     coord.Terminate();
 
     return 0;

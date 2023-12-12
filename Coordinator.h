@@ -2,6 +2,8 @@
 #define COORDINATOR_H
 
 #include "Network.h"
+#include "Storage.h"
+#include "Disk.h"
 
 #include <vector>
 #include <thread>
@@ -16,6 +18,8 @@ public:
     Coordinator(int port, std::string listurl);
     void Init(std::shared_ptr<std::atomic<bool>> quit);
     size_t DistributeLoad();
+    void DistributeAggregation();
+    std::vector<std::pair<std::string, int>> Aggregate(int top_size);
     void Terminate();
 
     // Callbacks called from the Network layer
@@ -28,13 +32,14 @@ private:
     std::mutex mtx;
     std::string listurl;
     std::unique_ptr<Network> network;
+    std::unique_ptr<Storage> storage;
     std::shared_ptr<std::atomic<bool>> quit;
 
     std::vector<int> idle_workers;
     std::condition_variable idle_workers_cv;
     std::unordered_map<int, std::string> busy_workers;
     std::condition_variable busy_workers_cv;
-    std::vector<std::string> pending_links;
+    std::vector<std::string> pending_work;
 };
 
 #endif

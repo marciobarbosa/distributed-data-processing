@@ -114,7 +114,10 @@ void Network::ResolveClient(Packet pkt)
     std::string message(pkt.message);
     switch (pkt.opcode) {
     case REQUEST:
-	client->Request(message);
+	client->Request(message, pkt.value);
+	break;
+    case AGGREGATE:
+	client->Aggregate(message, pkt.value);
 	break;
     case HEARTBEAT:
 	SendClient(HEARTBEAT, sock);

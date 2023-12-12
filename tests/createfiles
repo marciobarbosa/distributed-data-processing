@@ -1,0 +1,29 @@
+#!/usr/bin/bash
+
+list_prefix="file://"
+domain_prefix="https://"
+domain_sufix=".com"
+
+n_files=10
+n_links=50
+
+magic="7849400530197358156"
+
+current_path=$(pwd)
+
+touch filelist
+for ((i = 1; i <= n_files; i++)); do
+    touch file$i ;
+    filepath="${list_prefix}${current_path}/file$i" ;
+    echo $filepath >> filelist
+done
+
+for ((i = 1; i <= n_files; i++)); do
+    file=file$i ;
+    for ((j = 1; j <= n_links; j++)); do
+        domain="${domain_prefix}link$j${domain_sufix}" ;
+	for ((k = 1; k <= j; k++)); do
+	    echo "$magic	$domain" >> $file ;
+	done
+    done
+done

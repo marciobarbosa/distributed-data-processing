@@ -1,4 +1,5 @@
 .idea/
+cmake/
 cmake-build-*/
 *~
 *.swp
@@ -6,3 +7,4 @@ cmake-build-*/
 **/.vscode
 .vscode/
 build/
+tests/file*

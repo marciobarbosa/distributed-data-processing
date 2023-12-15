@@ -26,6 +26,9 @@ class AzureBlobClient {
    AzureBlobClient(const AzureBlobClient&) = delete;
    AzureBlobClient& operator=(const AzureBlobClient&) = delete;
 
+   /// Use the provided container
+   void setContainer(std::string containerName);
+
    /// Create a container that stores all blobs
    void createContainer(std::string containerName);
    
@@ -37,6 +40,12 @@ class AzureBlobClient {
 
    /// Read a string stream from a blob
    std::stringstream downloadStringStream(const std::string& blobName);
+
+   /// Write a stream to a blob
+   void uploadStream(const std::string& blobName, std::ifstream& stream);
+
+   /// Read a stream from a blob
+   void downloadStream(const std::string& blobName, std::ofstream& stream);
 
    /// List all blobs in the container
    std::vector<std::string> listBlobs();

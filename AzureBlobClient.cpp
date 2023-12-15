@@ -1,4 +1,5 @@
 #include "AzureBlobClient.h"
+#include <fstream>
 
 static std::string formatError(const azure::storage_lite::storage_error& error)
 // Format an Azure storage error
@@ -22,6 +23,12 @@ AzureBlobClient::AzureBlobClient(const std::string& accountName, const std::stri
 {
 }
 
+void AzureBlobClient::setContainer(std::string containerName)
+// Use the provided container
+{
+   this->containerName = std::move(containerName);
+}
+
 void AzureBlobClient::createContainer(std::string containerName)
 // Create a container that stores all blobs
 {
@@ -38,6 +45,22 @@ void AzureBlobClient::deleteContainer()
    if (!deleteRequest.success())
       throw std::runtime_error("Azure delete container failed: " + formatError(deleteRequest.error()));
    this->containerName = {};
+}
+
+void AzureBlobClient::uploadStream(const std::string& blobName, std::ifstream& stream)
+// Write a stream to a blob
+{
+   auto uploadRequest = client.upload_block_blob_from_stream(containerName, blobName, stream, {}).get();
+   if (!uploadRequest.success())
+      throw std::runtime_error("Azure upload blob failed: " + formatError(uploadRequest.error()));
+}
+
+void AzureBlobClient::downloadStream(const std::string& blobName, std::ofstream& stream)
+// Read a stream from a blob
+{
+   auto downloadRequest = client.download_blob_to_stream(containerName, blobName, 0, 0, stream).get();
+   if (!downloadRequest.success())
+      throw std::runtime_error("Azure download blob failed: " + formatError(downloadRequest.error()));
 }
 
 void AzureBlobClient::uploadStringStream(const std::string& blobName, std::stringstream& stream)

@@ -16,6 +16,7 @@ add_executable(coordinator
         Common.cpp
         Network.cpp
 	Disk.cpp
+	CloudAzure.cpp
         AzureBlobClient.cpp AzureBlobClient.h)
 target_link_libraries(coordinator PUBLIC CURL::libcurl azure-storage-lite)
 
@@ -26,6 +27,7 @@ add_executable(worker
         Common.cpp
         Network.cpp
 	Disk.cpp
+	CloudAzure.cpp
         AzureBlobClient.cpp AzureBlobClient.h)
 target_link_libraries(worker PUBLIC CURL::libcurl azure-storage-lite)
 

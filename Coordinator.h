@@ -4,6 +4,7 @@
 #include "Network.h"
 #include "Storage.h"
 #include "Disk.h"
+#include "CloudAzure.h"
 
 #include <vector>
 #include <thread>
@@ -16,7 +17,7 @@
 class Coordinator : public Server {
 public:
     Coordinator(int port, std::string listurl);
-    void Init(std::shared_ptr<std::atomic<bool>> quit);
+    void Init(Options& opts, std::shared_ptr<std::atomic<bool>> quit);
     size_t DistributeLoad();
     void DistributeAggregation();
     std::vector<std::pair<std::string, int>> Aggregate(int top_size);
@@ -29,6 +30,7 @@ public:
 private:
     int port;
     size_t result;
+    Options opts;
     std::mutex mtx;
     std::string listurl;
     std::unique_ptr<Network> network;
@@ -40,6 +42,8 @@ private:
     std::unordered_map<int, std::string> busy_workers;
     std::condition_variable busy_workers_cv;
     std::vector<std::string> pending_work;
+
+    std::unique_ptr<Storage> AllocStorage();
 };
 
 #endif

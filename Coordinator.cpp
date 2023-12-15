@@ -9,18 +9,27 @@
 #include <cstring>
 #include <algorithm>
 
+std::unique_ptr<Storage> Coordinator::AllocStorage()
+{
+    if (opts.instance == Instance::AzureCloud) {
+	return std::make_unique<CloudAzure>();
+    }
+    return std::make_unique<Disk>();
+}
+
 Coordinator::Coordinator(int port, std::string listurl) : port(port), listurl(listurl)
 {
     result = 0;
     network = std::make_unique<Network>(port, this);
-    storage = std::make_unique<Disk>();
 }
 
-void Coordinator::Init(std::shared_ptr<std::atomic<bool>> quit)
+void Coordinator::Init(Options& opts, std::shared_ptr<std::atomic<bool>> quit)
 {
+    this->opts = opts;
     this->quit = quit;
     network->InitServer(quit);
-    storage->Init();
+    storage = AllocStorage();
+    storage->Init(opts);
 }
 
 void Coordinator::NewClient(int socket)
@@ -199,9 +208,9 @@ std::vector<std::pair<std::string, int>> Coordinator::Aggregate(int top_size)
     for (const auto& file : files) {
 	if (file.compare(0, prefix.length(), prefix) != 0)
 	    continue;
-	std::unique_ptr<Storage> handle = std::make_unique<Disk>();
-	handle->Init();
-	handle->Open(file);
+	std::unique_ptr<Storage> handle = AllocStorage();
+	handle->Init(opts);
+	handle->Open(file, Mode::Read);
 	handles.push_back(std::move(handle));
     }
 

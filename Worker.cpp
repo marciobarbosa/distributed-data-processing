@@ -6,17 +6,26 @@
 #include <algorithm>
 #include <unordered_map>
 
+std::unique_ptr<Storage> Worker::AllocStorage()
+{
+    if (opts.instance == Instance::AzureCloud) {
+	return std::make_unique<CloudAzure>();
+    }
+    return std::make_unique<Disk>();
+}
+
 Worker::Worker(const char *host, int port) : host(host), port(port)
 {
     n_partitions = 0;
     network = std::make_unique<Network>(host, port, this);
-    storage = std::make_unique<Disk>();
 }
 
-void Worker::Init(std::shared_ptr<std::atomic<bool>> quit)
+void Worker::Init(Options& opts,std::shared_ptr<std::atomic<bool>> quit)
 {
+    this->opts = opts;
     this->quit = quit;
-    storage->Init();
+    storage = AllocStorage();
+    storage->Init(opts);
     network->InitClient(quit);
 }
 
@@ -25,6 +34,8 @@ void Worker::Request(std::string url, int worker_id)
     std::unordered_map<std::string, int> url_counts;
     size_t result = ProcessData(url, url_counts);
     auto unique = std::to_string(worker_id);
+    std::unordered_map<std::string, std::unique_ptr<Storage>> filetable;
+    std::unique_ptr<Storage> storageptr;
 
     for (const auto& url_count : url_counts) {
 	Blob blob = {};
@@ -34,11 +45,18 @@ void Worker::Request(std::string url, int worker_id)
 	blob.n_entries = url_count.second;
 	std::copy(key.begin(), key.end(), blob.url);
 
-	storage->Open(filename);
-	storage->Write(blob);
-	storage->Close();
-
+	auto it = filetable.find(filename);
+	if (it == filetable.end()) {
+	    std::unique_ptr<Storage> file = AllocStorage();
+	    file->Init(opts);
+	    file->Open(filename, Mode::Write);
+	    filetable[filename] = std::move(file);
+	}
+	filetable[filename]->Write(blob);
 	n_partitions++;
+    }
+    for (const auto& entry : filetable) {
+	entry.second->Close();
     }
     network->SendClient(RESULT, static_cast<int>(result));
 }
@@ -57,7 +75,7 @@ void Worker::Aggregate(std::string range, int worker_id)
 
     for (auto file : filelst) {
 	Blob blob = {};
-	storage->Open(file);
+	storage->Open(file, Mode::Read);
 
 	while (storage->Read(blob)) {
 	    auto it = url_counts.find(blob.url);
@@ -79,7 +97,7 @@ void Worker::Aggregate(std::string range, int worker_id)
 
     auto unique = std::to_string(worker_id) + "-" + std::to_string(n_partitions);
     auto filename = std::string("aggr") + "_" + unique;
-    storage->Open(filename);
+    storage->Open(filename, Mode::Write);
 
     for (const auto& pair : sorted_urls) {
 	Blob blob = {};
@@ -88,7 +106,6 @@ void Worker::Aggregate(std::string range, int worker_id)
 	blob.n_entries = pair.second;
 	std::copy(url.begin(), url.end(), blob.url);
 	storage->Write(blob);
-
     }
     storage->Close();
     n_partitions++;

@@ -4,8 +4,17 @@ list_prefix="file://"
 domain_prefix="https://"
 domain_sufix=".com"
 
-n_files=10
-n_links=50
+if [ -z "$1" ]; then
+    n_files=10
+else
+    n_files="$1"
+fi
+
+if [ -z "$2" ]; then
+    n_links=50
+else
+    n_links="$2"
+fi
 
 magic="7849400530197358156"
 

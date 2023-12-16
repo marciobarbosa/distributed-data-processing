@@ -1,0 +1,54 @@
+#!/usr/bin/bash
+
+port=8081
+list_prefix="file://"
+
+if [ -z "$1" ]; then
+    n_workers=2
+else
+    n_workers="$1"
+fi
+
+if [ -z "$2" ]; then
+    n_files=10
+else
+    n_files="$2"
+fi
+
+if [ -z "$3" ]; then
+    n_links=50
+else
+    n_links="$3"
+fi
+
+counter=0
+threshold=25
+
+for ((i = n_links; i > 0; i--)) ; do
+    ((counter++)) ;
+    domain="link$i.com" ;
+    total=$((i * n_files)) ;
+    echo "$domain $total" >> ./expected
+    if [ "$counter" -eq "$threshold" ]; then
+	break
+    fi
+done
+
+./createfiles $n_files $n_links
+current_path=$(pwd)
+
+for ((i = 1; i <= n_workers; i++)) ; do
+    ../cmake-build-debug/worker localhost $port -local &
+done
+
+../cmake-build-debug/coordinator $list_prefix$current_path/filelist $port -local &> ./result
+
+diff ./expected ./result
+if [ $? -eq 0 ]; then
+    echo "PASSED"
+else
+    echo "FAILED"
+fi
+
+rm ./expected ./result
+rm ./file*

@@ -99,6 +99,9 @@ void Worker::Aggregate(std::string range, int worker_id)
     auto filename = std::string("aggr") + "_" + unique;
     storage->Open(filename, Mode::Write);
 
+    size_t n_entries = 0;
+    size_t max_entries = 50000;
+
     for (const auto& pair : sorted_urls) {
 	Blob blob = {};
 	auto url = pair.first;
@@ -106,6 +109,16 @@ void Worker::Aggregate(std::string range, int worker_id)
 	blob.n_entries = pair.second;
 	std::copy(url.begin(), url.end(), blob.url);
 	storage->Write(blob);
+
+	n_entries++;
+	if (n_entries == max_entries) {
+	    storage->Close();
+	    n_partitions++;
+	    unique = std::to_string(worker_id) + "-" + std::to_string(n_partitions);
+	    filename = std::string("aggr") + "_" + unique;
+	    storage->Open(filename, Mode::Write);
+	    n_entries = 0;
+	}
     }
     storage->Close();
     n_partitions++;

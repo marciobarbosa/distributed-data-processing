@@ -1,39 +1,25 @@
-#include "CloudAzure.h"
+#include "storage/Disk.h"
 #include <cstring>
 #include <stdexcept>
 #include <filesystem>
 
-#include "AzureBlobClient.h"
-#include "Consts.h"
-
 namespace fs = std::filesystem;
 
-void CloudAzure::Init(Options& opts)
+void Disk::Init(Options& opts)
 {
     basedir = opts.path;
-    client = opts.client;
     if (!fs::is_directory(basedir))
 	fs::create_directory(basedir);
 }
 
-void CloudAzure::Destroy() {}
+void Disk::Destroy() {}
 
-void CloudAzure::Open(const std::string& filename, Mode mode)
+void Disk::Open(const std::string& filename, Mode mode)
 {
+    (void)mode;
     const std::string fullpath = basedir + filename;
 
-    this->mode = mode;
     this->filename = filename;
-
-    if (mode == Mode::Read) {
-	std::ofstream file(fullpath, std::ofstream::out | std::ofstream::trunc);
-	if (!file.is_open()) {
-	    throw std::runtime_error("Error opening file");
-	}
-	client->downloadStream(filename, file);
-	file.close();
-    }
-
     filestream.open(fullpath, std::ios::in | std::ios::out | std::ios::binary | std::ios::app);
 
     if (!filestream.is_open()) {
@@ -47,7 +33,7 @@ void CloudAzure::Open(const std::string& filename, Mode mode)
     }
 }
 
-bool CloudAzure::Read(Blob& data)
+bool Disk::Read(Blob& data)
 {
     if (!filestream.is_open()) {
 	throw std::runtime_error("File not open for reading");
@@ -58,7 +44,7 @@ bool CloudAzure::Read(Blob& data)
     return false;
 }
 
-void CloudAzure::Write(const Blob& data)
+void Disk::Write(const Blob& data)
 {
     if (!filestream.is_open()) {
 	throw std::runtime_error("File not open for writing");
@@ -66,12 +52,19 @@ void CloudAzure::Write(const Blob& data)
     filestream.write(reinterpret_cast<const char*>(&data), sizeof(Blob));
 }
 
-std::vector<std::string> CloudAzure::GetFiles()
+std::vector<std::string> Disk::GetFiles()
 {
-    return client->listBlobs();
+    std::vector<std::string> files;
+
+    for (const auto& entry : fs::directory_iterator(basedir)) {
+	if (!entry.is_regular_file())
+	    continue;
+	files.push_back(entry.path().filename().string());
+    }
+    return files;
 }
 
-void CloudAzure::RemoveFiles(std::vector<std::string> files)
+void Disk::RemoveFiles(std::vector<std::string> files)
 {
     for (auto file : files) {
 	auto fullpath = basedir + file;
@@ -79,17 +72,9 @@ void CloudAzure::RemoveFiles(std::vector<std::string> files)
     }
 }
 
-void CloudAzure::Close()
+void Disk::Close()
 {
     if (filestream.is_open()) {
 	filestream.close();
-    }
-    if (mode == Mode::Write) {
-	std::ifstream file(basedir + filename);
-	if (!file.is_open()) {
-	    throw std::runtime_error("Could not open file");
-	}
-	client->uploadStream(filename, file);
-	file.close();
     }
 }

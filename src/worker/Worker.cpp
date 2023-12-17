@@ -1,5 +1,5 @@
-#include "Worker.h"
-#include "Common.h"
+#include "worker/Worker.h"
+#include "common/Common.h"
 
 #include <iostream>
 #include <cstring>

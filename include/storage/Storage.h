@@ -1,8 +1,8 @@
 #ifndef STORAGE_H
 #define STORAGE_H
 
-#include "AzureBlobClient.h"
 #include <vector>
+#include "storage/AzureBlobClient.h"
 
 const int URL_MAX = 2048;
 

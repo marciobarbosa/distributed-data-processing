@@ -1,5 +1,5 @@
-#include "Worker.h"
-#include "Consts.h"
+#include "worker/Worker.h"
+#include "common/Consts.h"
 #include <iostream>
 
 /// Worker process that receives a list of URLs and reports the result

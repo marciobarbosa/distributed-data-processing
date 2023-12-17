@@ -1,6 +1,6 @@
-#include "AzureBlobClient.h"
-#include "Coordinator.h"
-#include "Consts.h"
+#include "storage/AzureBlobClient.h"
+#include "coordinator/Coordinator.h"
+#include "common/Consts.h"
 #include <iostream>
 
 /// Leader process that coordinates workers. Workers connect on the specified port

@@ -1,4 +1,4 @@
-#include "CurlEasyPtr.h"
+#include "common/CurlEasyPtr.h"
 #include <fstream>
 #include <sstream>
 #include <curl/curl.h>

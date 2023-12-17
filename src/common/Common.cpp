@@ -1,5 +1,5 @@
-#include "Common.h"
-#include "CurlEasyPtr.h"
+#include "common/Common.h"
+#include "common/CurlEasyPtr.h"
 
 #include <string>
 #include <sstream>

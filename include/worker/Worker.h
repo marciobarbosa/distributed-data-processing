@@ -1,10 +1,10 @@
 #ifndef WORKER_H
 #define WORKER_H
 
-#include "Network.h"
-#include "Storage.h"
-#include "Disk.h"
-#include "CloudAzure.h"
+#include "network/Network.h"
+#include "storage/Storage.h"
+#include "storage/Disk.h"
+#include "storage/CloudAzure.h"
 
 #include <memory>
 #include <atomic>

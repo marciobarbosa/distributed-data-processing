@@ -3,9 +3,10 @@
 #include <iostream>
 #include <fstream>
 #include <string>
-#include "Storage.h"
 
-class Disk : public Storage {
+#include "storage/Storage.h"
+
+class CloudAzure : public Storage {
 public:
     void Init(Options& opts);
     void Destroy();
@@ -19,6 +20,8 @@ private:
     std::string filename;
     std::fstream filestream;
     std::string basedir;
+    std::shared_ptr<AzureBlobClient> client;
+    Mode mode;
 };
 
 #endif

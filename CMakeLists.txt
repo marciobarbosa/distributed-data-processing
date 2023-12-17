@@ -9,25 +9,16 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -Wconversion -Werror -fsan
 
 find_package(CURL REQUIRED)
 
-add_executable(coordinator
-        coordinator.cpp
-        CurlEasyPtr.cpp
-        Coordinator.cpp
-        Common.cpp
-        Network.cpp
-	Disk.cpp
-	CloudAzure.cpp
-        AzureBlobClient.cpp AzureBlobClient.h)
-target_link_libraries(coordinator PUBLIC CURL::libcurl azure-storage-lite)
+include_directories(${CMAKE_SOURCE_DIR}/include ${CMAKE_SOURCE_DIR}/cmake/_deps/azure-storage-lite-src/include)
 
-add_executable(worker
-        worker.cpp
-        CurlEasyPtr.cpp
-        Worker.cpp
-        Common.cpp
-        Network.cpp
-	Disk.cpp
-	CloudAzure.cpp
-        AzureBlobClient.cpp AzureBlobClient.h)
-target_link_libraries(worker PUBLIC CURL::libcurl azure-storage-lite)
+add_subdirectory(src/common)
+add_subdirectory(src/coordinator)
+add_subdirectory(src/network)
+add_subdirectory(src/storage)
+add_subdirectory(src/worker)
 
+add_executable(coordinator coordinator.cpp)
+target_link_libraries(coordinator coordinator_lib network_lib storage_lib common_lib CURL::libcurl azure-storage-lite)
+
+add_executable(worker worker.cpp)
+target_link_libraries(worker worker_lib network_lib storage_lib common_lib azure-storage-lite)

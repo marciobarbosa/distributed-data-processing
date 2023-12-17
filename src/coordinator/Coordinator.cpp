@@ -1,6 +1,6 @@
-#include "Coordinator.h"
-#include "CurlEasyPtr.h"
-#include "Common.h"
+#include "coordinator/Coordinator.h"
+#include "common/CurlEasyPtr.h"
+#include "common/Common.h"
 
 #include <set>
 #include <queue>
